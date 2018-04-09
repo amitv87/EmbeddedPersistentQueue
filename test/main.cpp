@@ -67,9 +67,9 @@ void testRaw(){
       usleep(1);
       // nanosleep((const struct timespec[]){{0, 0L}}, NULL);
       Msg* msg1 = NewMsg(strlen(data), (unsigned char*)data);
-      qf->Push(qname1, msg1);
+      if(!qf->Push(qname1, msg1)) FreeMsg(msg1);
       Msg* msg2 = NewMsg(strlen(data), (unsigned char*)data);
-      qf->Push(qname2, msg2);
+      if(!qf->Push(qname2, msg2)) FreeMsg(msg2);
     }
   });
 
@@ -77,10 +77,10 @@ void testRaw(){
     while(true){
       usleep(1);
       // nanosleep((const struct timespec[]){{0, 0L}}, NULL);
-      Msg* msg1 = qf->Pop(qname1);
-      if(msg1) FreeMsg(msg1);
-      Msg* msg2 = qf->Pop(qname2);
-      if(msg2) FreeMsg(msg2);
+      Msg* msg = qf->Pop(qname1);
+      if(msg) FreeMsg(msg);
+      msg = qf->Pop(qname2);
+      if(msg) FreeMsg(msg);
     }
   });
 }
