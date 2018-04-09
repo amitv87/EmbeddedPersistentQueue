@@ -71,7 +71,7 @@ private:
 
     #ifdef __APPLE__
     const char* fmt = "%s.%03d";
-    #elif
+    #else
     const char* fmt = "%s.%03ld";
     #endif
 
