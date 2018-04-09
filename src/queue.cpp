@@ -277,7 +277,7 @@ QueueFactoryImpl::QueueFactoryImpl(char* _dbPath){
     if(dbPath[len - 1] != '/') dbPath[len] = '/';
     _mkdir(dbPath);
   }
-  LOG(L_MSG) << "QueueFactoryImpl initialised with path: " << dbPath;
+  LOG(L_MSG) << "QueueFactory initialised with path: " << dbPath;
 }
 
 Queue* QueueFactoryImpl::GetQ(char* name, bool create){
