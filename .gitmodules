@@ -1,0 +1,8 @@
+[submodule "deps/junction"]
+	path = deps/junction
+	url = https://github.com/preshing/junction.git
+	shallow = true
+[submodule "deps/turf"]
+	path = deps/turf
+	url = https://github.com/preshing/turf.git
+	shallow = true
