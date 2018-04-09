@@ -8,6 +8,9 @@
 #define likely(x)       __builtin_expect((x),1)
 #define unlikely(x)     __builtin_expect((x),0)
 
+inline int LOG_LEVEL = L_TRC;
+inline bool COLOR_LOG = true;
+
 const size_t MAX_Q_SIZE = 1000000;
 const uint8_t MSG_HEADER_SIZE = sizeof(uint16_t);
 

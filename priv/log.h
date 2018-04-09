@@ -21,8 +21,8 @@
 #define TARGET_LOG_LEVEL L_TRC
 #endif
 
-inline int LOG_LEVEL = L_TRC;
-inline bool COLOR_LOG = true;
+extern int LOG_LEVEL;
+extern bool COLOR_LOG;
 
 inline void _SetLogLevel(int l, bool c){
   LOG_LEVEL = l;
