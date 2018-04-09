@@ -1,4 +1,4 @@
-#include <list>
+#include <mutex>
 #include <iostream>
 #include <queuefactory.h>
 #include <concurrentqueue.h>
@@ -11,6 +11,7 @@ typedef junction::ConcurrentMap_Grampa<size_t, Queue*> QueueMap;
 typedef moodycamel::ConcurrentQueue<Msg*> MsgQueue;
 
 class Queue{
+  QStat stats;
   std::mutex mtx;
   std::list<uint64_t> files;
   MsgQueue* hq = new MsgQueue();  // head queue
@@ -30,8 +31,8 @@ public:
   Queue(char* _name, char* _dbPath);
   Msg* Pop();
   bool Push(Msg* msg);
-  void PrintStats();
   void DumpToDisk();
+  QStat* GetStats();
 };
 
 class QueueFactoryImpl : QueueFactory{
@@ -44,6 +45,6 @@ public:
   QueueFactoryImpl(char* dbPath);
   Msg* Pop(char* name);
   bool Push(char* name, Msg* msg);
-  void PrintStats(char* name = 0);
   void DumpToDisk();
+  std::list<QStat*> GetStats();
 };

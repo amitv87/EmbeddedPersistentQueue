@@ -171,6 +171,8 @@ Queue::Queue(char* _name, char* _dbPath){
   int i = 0;
   glob_t globbuf;
 
+  stats.qname = name;
+
   std::ostringstream fname;
   fname << dbPath << name << "_*";
 
@@ -241,14 +243,15 @@ Msg* Queue::Pop(){
   return msg;
 }
 
-void Queue::PrintStats(){
-  LOG(L_MSG) << "sizes hq: " << hq->size_approx() << ", tq: " << tq->size_approx()
-    << ", push rate " << pushCount
-    << ", pop rate " << popCount
-    << ", files " << files.size();
+QStat* Queue::GetStats(){
+  stats.hqSize = hq->size_approx();
+  stats.tqSize = tq->size_approx();
+  stats.popCount = pushCount;
+  stats.pushCount = popCount;
 
   popCount = 0;
   pushCount = 0;
+  return &stats;
 }
 
 QueueFactory* QueueFactory::qFactory = nullptr;
@@ -311,16 +314,13 @@ Msg* QueueFactoryImpl::Pop(char* name){
   return msg;
 }
 
-void QueueFactoryImpl::PrintStats(char* name){
-  if(name){
-    Queue* q = GetQ(name);
-    if(q) q->PrintStats();
-  }
-  else
-    for(std::list<Queue*>::iterator it=queues.begin(); it != queues.end(); ++it){
+std::list<QStat*> QueueFactoryImpl::GetStats(){
+  std::list<QStat*> stats;
+  for(std::list<Queue*>::iterator it=queues.begin(); it != queues.end(); ++it){
       Queue* q = *it;
-      q->PrintStats();
+      stats.push_back(q->GetStats());
     }
+  return stats;
 }
 
 void QueueFactoryImpl::DumpToDisk(){

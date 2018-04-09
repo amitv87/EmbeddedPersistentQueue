@@ -4,7 +4,8 @@
 #include <queuefactory.h>
 
 char* data = "barbarbarbarbarbarbarbarbarbarbarbarbarbarbarbarbarbarbarbar";
-char* qname = "foo";
+char* qname1 = "foo";
+char* qname2 = "bar";
 
 void HndleSignal(int signal){
   printf("signal caught %d\n", signal);
@@ -41,17 +42,17 @@ void RunOnNewThread(Runnable callback){
 void testOne(){
   QueueFactory* qf = QueueFactory::GetQueueFactory();
   Msg* msgin = NewMsg(strlen(data), (unsigned char*)data);
-  if(qf->Push(qname, msgin))
-    printf("pushed message %s of size %d to queue %s\n", GetData(msgin), GetSize(msgin), qname);
+  if(qf->Push(qname1, msgin))
+    printf("pushed message %s of size %d to queue %s\n", GetData(msgin), GetSize(msgin), qname1);
   else
     printf("no message pushed\n");
 
   FreeMsg(msgin);
   msgin = nullptr;
 
-  Msg* msgout = qf->Pop(qname);
+  Msg* msgout = qf->Pop(qname1);
   if(msgout){
-    printf("popped message %s of size %d from queue %s\n", GetData(msgout), GetSize(msgout), qname);
+    printf("popped message %s of size %d from queue %s\n", GetData(msgout), GetSize(msgout), qname1);
     FreeMsg(msgin);
     msgout = nullptr;
   }
@@ -65,35 +66,45 @@ void testRaw(){
     while(true){
       usleep(1);
       // nanosleep((const struct timespec[]){{0, 0L}}, NULL);
-      Msg* msg = NewMsg(strlen(data), (unsigned char*)data);
-      if(! qf->Push(qname, msg)){
-        FreeMsg(msg);
-        break;
-      }
+      Msg* msg1 = NewMsg(strlen(data), (unsigned char*)data);
+      qf->Push(qname1, msg1);
+      Msg* msg2 = NewMsg(strlen(data), (unsigned char*)data);
+      qf->Push(qname2, msg2);
     }
   });
 
   RunOnNewThread([qf](){
-    Msg* msg;
     while(true){
       usleep(1);
       // nanosleep((const struct timespec[]){{0, 0L}}, NULL);
-      Msg* msg = qf->Pop(qname);
-      if(msg) FreeMsg(msg);
+      Msg* msg1 = qf->Pop(qname1);
+      if(msg1) FreeMsg(msg1);
+      Msg* msg2 = qf->Pop(qname2);
+      if(msg2) FreeMsg(msg2);
     }
   });
 }
 
 int main(int argc, char const *argv[]){
   InitSignalHandler();
-  QueueFactory::SetLogLevel(6, true);
+  QueueFactory::SetLogLevel(1, true);
 
   QueueFactory* qf = QueueFactory::GetQueueFactory((char*)(argc > 1 ? (argv[1]) : "_db"));
   // testOne();
   testRaw();
 
   while(true){
-    qf->PrintStats();
+    std::list<QStat*> lst = qf->GetStats();
+    for(std::list<QStat*>::iterator it=lst.begin(); it != lst.end(); ++it){
+      QStat* stat = *it;
+      printf("q: %s, hq len: %llu, tq len: %llu, push rate: %llu, pop rate: %llu\n",
+        stat->qname,
+        stat->hqSize,
+        stat->tqSize,
+        stat->popCount,
+        stat->pushCount
+      );
+    }
     usleep(1000 * 1000);
   }
   
