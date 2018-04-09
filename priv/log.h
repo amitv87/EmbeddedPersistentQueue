@@ -68,7 +68,14 @@ private:
     nowtime = tv.tv_sec;
     nowtm = localtime(&nowtime);
     strftime(tmbuf, sizeof tmbuf, "%Y-%m-%d %H:%M:%S", nowtm);
-    snprintf(buf, sizeof buf, "%s.%03d", tmbuf, tv.tv_usec / 1000);
+
+    #ifdef __APPLE__
+    const char* fmt = "%s.%03d";
+    #elif
+    const char* fmt = "%s.%03ld";
+    #endif
+
+    snprintf(buf, sizeof buf, fmt, tmbuf, tv.tv_usec / 1000);
     _buffer << "[" << buf;
   }
   void putColor(){
