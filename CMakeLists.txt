@@ -17,7 +17,7 @@ endif()
 
 SET(CMAKE_C_FLAGS "-std=c11")
 
-SET(CMAKE_CXX_FLAGS "-std=c++1z -O3 -D__FILENAME__='\"$(subst ${CMAKE_SOURCE_DIR}/,,$(abspath \$<))\"'")
+SET(CMAKE_CXX_FLAGS "-std=c++11 -O3 -D__FILENAME__='\"$(subst ${CMAKE_SOURCE_DIR}/,,$(abspath \$<))\"'")
 
 SET(TURF_DIR "${CMAKE_SOURCE_DIR}/deps/turf")
 SET(JUNCTION_DIR "${CMAKE_SOURCE_DIR}/deps/junction")
