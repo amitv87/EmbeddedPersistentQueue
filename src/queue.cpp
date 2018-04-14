@@ -364,6 +364,7 @@ void QueueFactoryImpl::DumpToDisk(bool printStats){
 void PrintStats(QStat* stat){
   LOG(L_MSG)
     << "q: " << stat->qname
+    << ", files:" << stat->files
     << ", hqlen: " << stat->hqSize
     << ", tqlen: " << stat->tqSize
     << ", popcnt: " << stat->popCount

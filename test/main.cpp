@@ -94,7 +94,7 @@ void testRaw(){
 
 int main(int argc, char const *argv[]){
   InitSignalHandler();
-  // QueueFactory::SetLogLevel(1, true);
+  QueueFactory::SetLogLevel(1, true);
 
   QueueFactory* qf = QueueFactory::GetQueueFactory((char*)(argc > 1 ? (argv[1]) : "_db"));
   // testOne();
