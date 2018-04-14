@@ -41,11 +41,12 @@ class QueueFactoryImpl : QueueFactory{
   QueueMap qmap;
   std::mutex mtx;
   std::list<Queue*> queues;
+  std::atomic<bool> dumping{false};
   Queue* GetQ(char* name, bool create = false);
 public:
   QueueFactoryImpl(char* dbPath);
   Msg* Pop(char* name);
   bool Push(char* name, Msg* msg);
-  void DumpToDisk(bool printStats = false);
+  void DumpToDiskAndExit(bool printStats = false);
   std::list<QStat*> GetStats();
 };

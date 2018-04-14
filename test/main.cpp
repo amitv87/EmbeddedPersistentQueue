@@ -8,16 +8,15 @@ char* data = "barbarbarbarbarbarbarbarbarbarbarbarbarbarbarbarbarbarbarbar";
 char* qname1 = "foo";
 char* qname2 = "bar";
 
-void HndleSignal(int signal){
+void HandleSignal(int signal){
   printf("signal caught %d\n", signal);
   QueueFactory* qf = QueueFactory::GetQueueFactory();
-  qf->DumpToDisk(true);
-  exit(0);
+  qf->DumpToDiskAndExit(false);
 }
 
 void InitSignalHandler(){
   struct sigaction sa;
-  sa.sa_handler = &HndleSignal;
+  sa.sa_handler = &HandleSignal;
   sa.sa_flags = SA_RESTART;
   sigfillset(&sa.sa_mask);
 
@@ -72,8 +71,8 @@ void testRaw(){
         // nanosleep((const struct timespec[]){{0, 0L}}, NULL);
         Msg* msg1 = NewMsg(strlen(data), (unsigned char*)data);
         if(!qf->Push(qname1, msg1)) FreeMsg(msg1);
-        // Msg* msg2 = NewMsg(strlen(data), (unsigned char*)data);
-        // if(!qf->Push(qname2, msg2)) FreeMsg(msg2);
+        Msg* msg2 = NewMsg(strlen(data), (unsigned char*)data);
+        if(!qf->Push(qname2, msg2)) FreeMsg(msg2);
       }
     });
   }
@@ -81,12 +80,12 @@ void testRaw(){
   for(int i = 0; i < 2; i++){
     RunOnNewThread([qf](){
       while(true){
-        usleep(2);
+        usleep(3);
         // nanosleep((const struct timespec[]){{0, 0L}}, NULL);
         Msg* msg = qf->Pop(qname1);
         if(msg) FreeMsg(msg);
-        // msg = qf->Pop(qname2);
-        // if(msg) FreeMsg(msg);
+        msg = qf->Pop(qname2);
+        if(msg) FreeMsg(msg);
       }
     });
   }
@@ -108,6 +107,5 @@ int main(int argc, char const *argv[]){
 
     usleep(1000 * 1000);
   }
-  
   return 0;
 }

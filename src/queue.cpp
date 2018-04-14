@@ -144,9 +144,9 @@ bool Queue::LoadQFromFile(MsgQueue* q, uint64_t fileNo){
 
 bool Queue::LoadHqFromFile(){
   bool rc = false;
-  if(files.size() > 0 && hq->size_approx() < MAX_Q_SIZE / 3){
+  if(files.size() > 0 && hq->size_approx() < MAX_Q_SIZE / 10){
     mtx.lock();
-    if(files.size() > 0 && hq->size_approx() < MAX_Q_SIZE / 3){
+    if(files.size() > 0 && hq->size_approx() < MAX_Q_SIZE / 10){
       uint64_t fileNo = files.front();
       files.pop_front();
       LOG(L_MSG) << "q " << name << ": loading hq from " << fileNo;
@@ -196,7 +196,7 @@ Queue::Queue(char* _name, char* _dbPath){
         uint64_t fts = std::strtoul(tsStr.c_str(), 0 , 10);
         if(fts > 0){
           files.push_back(fts);
-          LOG(L_MSG) << "q " << name << ": dump file with ts: " << fts << " found";
+          LOG(L_MSG) << "q " << name << ": dump file with ts " << fts << " found";
         }
       }
     }
@@ -350,23 +350,29 @@ std::list<QStat*> QueueFactoryImpl::GetStats(){
   return stats;
 }
 
-void QueueFactoryImpl::DumpToDisk(bool printStats){
+void QueueFactoryImpl::DumpToDiskAndExit(bool printStats){
   FBEG;
+  if(dumping) return;
+  dumping = true;
   mtx.lock();
-  for (std::list<Queue*>::iterator it=queues.begin(); it != queues.end(); ++it){
-    Queue* q = *it;
-    q->DumpToDisk(printStats);
-  }
-  mtx.unlock();
+  std::thread([this, printStats]{
+    LOG(L_MSG) << "dumping started";
+    for (std::list<Queue*>::iterator it=queues.begin(); it != queues.end(); ++it){
+      Queue* q = *it;
+      q->DumpToDisk(printStats);
+    }
+    exit(0);
+    // mtx.unlock();
+  }).detach();
+  usleep(1000 * 1000 * 1000);
   FEND;
 }
 
 void PrintStats(QStat* stat){
-  LOG(L_MSG)
-    << "q: " << stat->qname
-    << ", files:" << stat->files
-    << ", hqlen: " << stat->hqSize
-    << ", tqlen: " << stat->tqSize
-    << ", popcnt: " << stat->popCount
-    << ", pushcnt: " << stat->pushCount;
+  LOG(L_MSG) << "q " << stat->qname
+    << ": files=" << stat->files
+    << ", hqlen=" << stat->hqSize
+    << ", tqlen=" << stat->tqSize
+    << ", popcnt=" << stat->popCount
+    << ", pushcnt=" << stat->pushCount;
 }
