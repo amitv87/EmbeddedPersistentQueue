@@ -9,6 +9,7 @@ Msg* NewMsg(uint16_t size, unsigned char* data);
 
 struct QStat{
   char* qname;
+  size_t files = 0;
   uint64_t hqSize = 0;
   uint64_t tqSize = 0;
   uint64_t popCount = 0;

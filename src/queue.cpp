@@ -82,82 +82,91 @@ bool Queue::SaveQToFile(MsgQueue* q, uint64_t ts){
   return true;
 }
 
-bool Queue::SaveTqToFile(){
+bool Queue::LoadQFromFile(MsgQueue* q, uint64_t fileNo){
+  FBEG;
   bool rc = false;
-  maintenanceMode = true;
-  usleep(1);
-  MsgQueue* _q = tq;
-  tq = new MsgQueue();
-  uint64_t ts = getTS();
-  rc = SaveQToFile(_q, ts);
-  delete _q;
-  files.push_back(ts);
-  maintenanceMode = false;
-  usleep(1);
+
+  std::ostringstream fname;
+  fname << dbPath << name << "_" << fileNo;
+
+  struct stat buffer;
+  if(stat(fname.str().c_str(), &buffer) == 0){
+    size_t fileSize = buffer.st_size;
+
+    unsigned char* buff = (unsigned char*) malloc (sizeof(unsigned char)*fileSize);
+
+    if(!buff){
+      LOG(L_FAT) << "alloc failed";
+      goto end;
+    }
+
+    unsigned char* orgBuff = buff;
+
+    uint64_t ts = getTS();
+
+    FILE* pFile = fopen(fname.str().c_str(), "rb");
+    size_t bytesRead = fread(buff, 1, fileSize, pFile);
+    if(bytesRead != buffer.st_size){
+      LOG(L_ERR) << fname.str() << " size mismatch, " << " bytesRead: " << bytesRead << ", against fileSize: " << fileSize;
+    }
+
+    uint32_t numMessage = 0;
+
+    while(bytesRead > 0){
+      if(bytesRead <= MSG_HEADER_SIZE) break;
+      uint16_t size = ((uint16_t*)(buff))[0];
+      buff += MSG_HEADER_SIZE;
+      bytesRead -= MSG_HEADER_SIZE;
+      if(bytesRead < size) break;
+      Msg* msg = NewMsg(size, buff);
+      buff += size;
+      bytesRead -= size;
+      hq->enqueue(msg);
+      numMessage += 1;
+    }
+
+    remove(fname.str().c_str());
+
+    free(orgBuff);
+    fclose(pFile);
+
+    LOG(L_MSG) << "q " << name << ": loaded " << numMessage << " messages from "  << fileNo  << " in " << getTimeDiff(&ts) << " ms";
+
+    rc = numMessage > 0 ? true : false;
+  }
+  else{
+    FBEG << fname.str() << " not found";
+  }
+  end:
+  FEND;
   return rc;
 }
 
 bool Queue::LoadHqFromFile(){
   bool rc = false;
-  if(files.size() > 0 && hq->size_approx() == 0){
+  if(files.size() > 0 && hq->size_approx() < MAX_Q_SIZE / 3){
+    mtx.lock();
+    if(files.size() > 0 && hq->size_approx() < MAX_Q_SIZE / 3){
+      uint64_t fileNo = files.front();
+      files.pop_front();
+      LOG(L_MSG) << "q " << name << ": loading hq from " << fileNo;
+      rc = LoadQFromFile(hq, fileNo);
+    }
+    mtx.unlock();
+  }
+  return rc;
+}
+
+bool Queue::LoadTqFromFile(){
+  bool rc = false;
+  if(files.size() > 0 && tq->size_approx() == 0){
     mtx.lock();
     rc = true;
-    if(files.size() > 0 && hq->size_approx() == 0){
-      files.sort();
-      files.unique();
-
-      uint64_t fileNo = files.front();
-      std::ostringstream fname;
-      fname << dbPath << name << "_" << fileNo;
-      files.pop_front();
-
-      struct stat buffer;
-      if(stat(fname.str().c_str(), &buffer) == 0){
-        size_t fileSize = buffer.st_size;
-
-        unsigned char* buff = (unsigned char*) malloc (sizeof(unsigned char)*fileSize);
-
-        if(!buff){
-          LOG(L_FAT) << "alloc failed";
-          mtx.unlock();
-          return rc;
-        }
-
-        unsigned char* orgBuff = buff;
-
-        uint64_t ts = getTS();
-
-        FILE* pFile = fopen(fname.str().c_str(), "rb");
-        size_t bytesRead = fread(buff, 1, fileSize, pFile);
-        if(bytesRead != buffer.st_size){
-          LOG(L_ERR) << fname.str() << " size mismatch, " << " bytesRead: " << bytesRead << ", against fileSize: " << fileSize;
-        }
-
-        uint32_t numMessage = 0;
-
-        while(bytesRead > 0){
-          if(bytesRead <= MSG_HEADER_SIZE) break;
-          uint16_t size = ((uint16_t*)(buff))[0];
-          buff += MSG_HEADER_SIZE;
-          bytesRead -= MSG_HEADER_SIZE;
-          if(bytesRead < size) break;
-          Msg* msg = NewMsg(size, buff);
-          buff += size;
-          bytesRead -= size;
-          hq->enqueue(msg);
-          numMessage += 1;
-        }
-
-        remove(fname.str().c_str());
-
-        free(orgBuff);
-        fclose(pFile);
-
-        LOG(L_MSG) << "q " << name << ": loaded " << numMessage << " messages from "  << fileNo  << " in " << getTimeDiff(&ts) << " ms";
-      }
-      else{
-        FBEG << fname.str() << " not found";
-      }
+    if(files.size() > 0 && tq->size_approx() == 0){
+      uint64_t fileNo = files.back();
+      files.pop_back();
+      LOG(L_MSG) << "q " << name << ": loading tq from " << fileNo;
+      rc = LoadQFromFile(tq, fileNo);
     }
     mtx.unlock();
   }
@@ -196,15 +205,27 @@ Queue::Queue(char* _name, char* _dbPath){
   else
     LOG(L_MSG) << "q " << name << ": no dump files found";
 
-  LoadHqFromFile();
+  files.sort();
+  files.unique();
+
+  while(LoadHqFromFile());
+  LoadTqFromFile();
 
   FEND;
 }
 
 void Queue::DumpToDisk(){
   mtx.lock();
+  QStat* stat = GetStats();
+  printf("q: %s, hq len: %llu, tq len: %llu, pop rate: %llu, push rate: %llu\n",
+    stat->qname,
+    stat->hqSize,
+    stat->tqSize,
+    stat->popCount,
+    stat->pushCount
+  );
   if(hq->size_approx() > 0) SaveQToFile(hq, 1);
-  if(tq->size_approx() > 0) SaveQToFile(tq, getTS());
+  if(tq->size_approx() > 0) SaveQToFile(tq, std::numeric_limits<uint64_t>::max());
   files.clear();
   mtx.unlock();
 }
@@ -214,17 +235,26 @@ bool Queue::Push(Msg* msg){
   if(unlikely(tq->size_approx() >= MAX_Q_SIZE)){
     mtx.lock();
     if(tq->size_approx() >= MAX_Q_SIZE){
+      maintenanceMode = true;
       if(hq->size_approx() == 0 && files.size() == 0){
-        maintenanceMode = true;
         usleep(1);
         MsgQueue* _q = hq;
         hq = tq;
         tq = _q;
-        maintenanceMode = false;
         usleep(1);
       }
-      else
-        SaveTqToFile();
+      else{
+        bool rc = false;
+        usleep(1);
+        MsgQueue* _q = tq;
+        tq = new MsgQueue();
+        uint64_t ts = getTS();
+        rc = SaveQToFile(_q, ts);
+        delete _q;
+        files.push_back(ts);
+        usleep(1);
+      }
+      maintenanceMode = false;
     }
     mtx.unlock();
   }
@@ -249,8 +279,9 @@ Msg* Queue::Pop(){
 QStat* Queue::GetStats(){
   stats.hqSize = hq->size_approx();
   stats.tqSize = tq->size_approx();
-  stats.popCount = pushCount;
-  stats.pushCount = popCount;
+  stats.popCount = popCount;
+  stats.pushCount = pushCount;
+  stats.files = files.size();
 
   popCount = 0;
   pushCount = 0;

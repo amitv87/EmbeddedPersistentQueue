@@ -17,13 +17,14 @@ class Queue{
   MsgQueue* hq = new MsgQueue();  // head queue
   MsgQueue* tq = new MsgQueue();  // tail queue
 
-  std::atomic<bool> maintenanceMode{false};
   std::atomic<uint64_t> popCount{0};
   std::atomic<uint64_t> pushCount{0};
+  std::atomic<bool> maintenanceMode{false};
 
-  bool SaveTqToFile();
   bool LoadHqFromFile();
+  bool LoadTqFromFile();
   bool SaveQToFile(MsgQueue* q, uint64_t ts);
+  bool LoadQFromFile(MsgQueue* q, uint64_t fileNo);
 
 public:
   char* name;
