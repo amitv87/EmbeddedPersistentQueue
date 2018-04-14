@@ -32,7 +32,7 @@ public:
   Queue(char* _name, char* _dbPath);
   Msg* Pop();
   bool Push(Msg* msg);
-  void DumpToDisk();
+  void DumpToDisk(bool printStats = false);
   QStat* GetStats();
 };
 
@@ -46,6 +46,6 @@ public:
   QueueFactoryImpl(char* dbPath);
   Msg* Pop(char* name);
   bool Push(char* name, Msg* msg);
-  void DumpToDisk();
+  void DumpToDisk(bool printStats = false);
   std::list<QStat*> GetStats();
 };

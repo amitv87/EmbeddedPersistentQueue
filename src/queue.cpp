@@ -214,16 +214,9 @@ Queue::Queue(char* _name, char* _dbPath){
   FEND;
 }
 
-void Queue::DumpToDisk(){
+void Queue::DumpToDisk(bool printStats){
   mtx.lock();
-  QStat* stat = GetStats();
-  printf("q: %s, hq len: %llu, tq len: %llu, pop rate: %llu, push rate: %llu\n",
-    stat->qname,
-    stat->hqSize,
-    stat->tqSize,
-    stat->popCount,
-    stat->pushCount
-  );
+  if(printStats) PrintStats(GetStats());
   if(hq->size_approx() > 0) SaveQToFile(hq, 1);
   if(tq->size_approx() > 0) SaveQToFile(tq, std::numeric_limits<uint64_t>::max());
   files.clear();
@@ -357,13 +350,22 @@ std::list<QStat*> QueueFactoryImpl::GetStats(){
   return stats;
 }
 
-void QueueFactoryImpl::DumpToDisk(){
+void QueueFactoryImpl::DumpToDisk(bool printStats){
   FBEG;
   mtx.lock();
   for (std::list<Queue*>::iterator it=queues.begin(); it != queues.end(); ++it){
     Queue* q = *it;
-    q->DumpToDisk();
+    q->DumpToDisk(printStats);
   }
   mtx.unlock();
   FEND;
+}
+
+void PrintStats(QStat* stat){
+  LOG(L_MSG)
+    << "q: " << stat->qname
+    << ", hqlen: " << stat->hqSize
+    << ", tqlen: " << stat->tqSize
+    << ", popcnt: " << stat->popCount
+    << ", pushcnt: " << stat->pushCount;
 }

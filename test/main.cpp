@@ -10,7 +10,8 @@ char* qname2 = "bar";
 
 void HndleSignal(int signal){
   printf("signal caught %d\n", signal);
-  QueueFactory::GetQueueFactory()->DumpToDisk();
+  QueueFactory* qf = QueueFactory::GetQueueFactory();
+  qf->DumpToDisk(true);
   exit(0);
 }
 
@@ -63,32 +64,37 @@ void testOne(){
 
 void testRaw(){
   QueueFactory* qf = QueueFactory::GetQueueFactory();
-  RunOnNewThread([qf](){
-    while(true){
-      usleep(1);
-      // nanosleep((const struct timespec[]){{0, 0L}}, NULL);
-      Msg* msg1 = NewMsg(strlen(data), (unsigned char*)data);
-      if(!qf->Push(qname1, msg1)) FreeMsg(msg1);
-      Msg* msg2 = NewMsg(strlen(data), (unsigned char*)data);
-      if(!qf->Push(qname2, msg2)) FreeMsg(msg2);
-    }
-  });
 
-  RunOnNewThread([qf](){
-    while(true){
-      usleep(1);
-      // nanosleep((const struct timespec[]){{0, 0L}}, NULL);
-      Msg* msg = qf->Pop(qname1);
-      if(msg) FreeMsg(msg);
-      msg = qf->Pop(qname2);
-      if(msg) FreeMsg(msg);
-    }
-  });
+  for(int i = 0; i < 2; i++){
+    RunOnNewThread([qf](){
+      while(true){
+        usleep(1);
+        // nanosleep((const struct timespec[]){{0, 0L}}, NULL);
+        Msg* msg1 = NewMsg(strlen(data), (unsigned char*)data);
+        if(!qf->Push(qname1, msg1)) FreeMsg(msg1);
+        // Msg* msg2 = NewMsg(strlen(data), (unsigned char*)data);
+        // if(!qf->Push(qname2, msg2)) FreeMsg(msg2);
+      }
+    });
+  }
+
+  for(int i = 0; i < 2; i++){
+    RunOnNewThread([qf](){
+      while(true){
+        usleep(2);
+        // nanosleep((const struct timespec[]){{0, 0L}}, NULL);
+        Msg* msg = qf->Pop(qname1);
+        if(msg) FreeMsg(msg);
+        // msg = qf->Pop(qname2);
+        // if(msg) FreeMsg(msg);
+      }
+    });
+  }
 }
 
 int main(int argc, char const *argv[]){
   InitSignalHandler();
-  QueueFactory::SetLogLevel(1, true);
+  // QueueFactory::SetLogLevel(1, true);
 
   QueueFactory* qf = QueueFactory::GetQueueFactory((char*)(argc > 1 ? (argv[1]) : "_db"));
   // testOne();
@@ -97,15 +103,9 @@ int main(int argc, char const *argv[]){
   while(true){
     std::list<QStat*> lst = qf->GetStats();
     for(std::list<QStat*>::iterator it=lst.begin(); it != lst.end(); ++it){
-      QStat* stat = *it;
-      printf("q: %s, hq len: %llu, tq len: %llu, push rate: %llu, pop rate: %llu\n",
-        stat->qname,
-        stat->hqSize,
-        stat->tqSize,
-        stat->popCount,
-        stat->pushCount
-      );
+      PrintStats(*it);
     }
+
     usleep(1000 * 1000);
   }
   

@@ -21,8 +21,10 @@ class QueueFactory{
 public:
   static QueueFactory* GetQueueFactory(char* dbPath = (char*)"./"); // not thread safe
   static void SetLogLevel(int level, bool color); // level 0 -> 6
-  virtual void DumpToDisk() = 0; // call only once when process is about to exit (mostly on SIGINT)
+  virtual void DumpToDisk(bool printStats = false) = 0; // call only once when process is about to exit (mostly on SIGINT)
   virtual Msg* Pop(char* name) = 0;
   virtual bool Push(char* name, Msg* msg) = 0;
   virtual std::list<QStat*> GetStats() = 0;
 };
+
+void PrintStats(QStat* stat);
